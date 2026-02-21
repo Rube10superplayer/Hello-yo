@@ -106,10 +106,10 @@ end
 
 getgenv().RedzHub.Settings = {
     -- FARM SETTINGS
-    ["Auto Farm Level"] = false,
-    ["Auto Farm Mastery"] = false,
-    ["Auto Farm Material"] = false,
-    ["Auto Farm Boss"] = false,
+    ["Auto Farm Level"] = true,
+    ["Auto Farm Mastery"] = true,
+    ["Auto Farm Material"] = true,
+    ["Auto Farm Boss"] = true,
     ["Select Material"] = "Scrap Metal",
     
     -- SPEED SETTINGS (REDZ MAX)
