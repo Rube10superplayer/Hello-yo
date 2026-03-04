@@ -1,0 +1,1705 @@
+--[[
+    ═══════════════════════════════════════════════════════════
+    PREMIUM+ CAMLOCK V3.0 | ULTIMATE EDITION
+    ═══════════════════════════════════════════════════════════
+    
+    ✓ Premium Animated GUI
+    ✓ Advanced Camlock (Onion-grade)
+    ✓ Realistic Anti-Detection
+    ✓ ESP System
+    ✓ Mobile + PC Support
+    
+    ═══════════════════════════════════════════════════════════
+]]
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+-- Safety checks
+if not LocalPlayer or not Camera then
+    return warn("[PREMIUM] Initialization failed")
+end
+
+-- Platform Detection
+local IsMobile = false
+local IsPC = false
+local ExecutorName = "Unknown"
+
+pcall(function()
+    IsMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+    IsPC = UserInputService.KeyboardEnabled
+    ExecutorName = identifyexecutor and identifyexecutor() or (syn and "Synapse") or (KRNL_LOADED and "KRNL") or "Unknown"
+end)
+
+-- Drawing API Check
+local HasDrawing = pcall(function() 
+    local test = Drawing.new("Circle")
+    test:Remove()
+    return true
+end)
+
+-- ═══════════════════════════════════════════════════════════
+-- ANTI-DETECTION EVASION SYSTEM
+-- ═══════════════════════════════════════════════════════════
+
+local Evasion = {
+    MaxLockTime = 4.2,
+    MinSwitchDelay = 1.3,
+    MissChance = 9,
+    MaxAngularVelocity = 165,
+    NaturalDelay = 0.075,
+    SuspiciousActions = 0,
+    LastFlagTime = 0,
+    FlagThreshold = 3,
+    CurrentLockDuration = 0,
+    LastTargetSwitch = 0,
+    TotalLocks = 0,
+    Headshots = 0,
+    BodyShots = 0,
+    BlockedRemotes = {
+        "MainAC", "AC", "AntiCheat", "ClientAC",
+        "FlagPlayer", "FlagExploit", "LogSuspicious", "ReportExploit",
+        "BanPlayer", "KickPlayer", "ValidateClient", "CheckClient",
+        "SecurityCheck", "IntegrityCheck", "MovementCheck", "SpeedCheck",
+        "TeleportCheck", "PositionCheck", "DamageCheck", "CombatLog",
+        "HitValidation", "ValidateDamage", "AdminCall", "ModeratorAlert"
+    }
+}
+
+-- Configuration
+local Config = {
+    Enabled = false,
+    Version = "3.0",
+    TeamCheck = true,
+    PvPCheck = true,
+    VisibleCheck = true,
+    BaseSmoothness = 0.12,
+    DistanceSmoothing = true,
+    VelocitySmoothing = true,
+    ShakeReduction = 0.88,
+    AdaptiveSmoothing = true,
+    PredictionStrength = 0.158,
+    VelocityResolver = true,
+    JumpPrediction = true,
+    StrafePrediction = true,
+    StickyTarget = true,
+    StickyThreshold = 2.2,
+    PrioritySystem = true,
+    SmartHitbox = true,
+    HitboxPriority = {"Head", "UpperTorso", "HumanoidRootPart"},
+    FOVRadius = 180,
+    FOVFalloff = true,
+    ShowFOV = true,
+    DynamicFOV = true,
+    RainbowFOV = false,
+    ESPEnabled = false,
+    ESPBoxes = true,
+    ESPTracers = true,
+    ESPHealth = true,
+    ESPDistance = true,
+    ESPNames = true,
+    ESPMaxDistance = 500,
+    ToggleKey = Enum.KeyCode.Q,
+    ESPKey = Enum.KeyCode.E,
+    HoldMode = false,
+    TouchActivation = true,
+    ScreenEdgeDeadzone = 100,
+    Theme = "Premium",
+    UIScale = IsMobile and 1.15 or 1.0,
+    Notifications = true
+}
+
+-- Config Save/Load
+local ConfigFileName = "premium_camlock_v3.json"
+
+local function SaveConfig()
+    if not writefile then return false end
+    return pcall(function()
+        writefile(ConfigFileName, HttpService:JSONEncode(Config))
+    end)
+end
+
+local function LoadConfig()
+    if not readfile or not isfile or not isfile(ConfigFileName) then return false end
+    return pcall(function()
+        local data = HttpService:JSONDecode(readfile(ConfigFileName))
+        for key, value in pairs(data) do
+            if Config[key] ~= nil then
+                Config[key] = value
+            end
+        end
+    end)
+end
+
+-- Advanced Hook System
+local HookActive = false
+
+local function InitializeHooks()
+    if HookActive then return true end
+    
+    return pcall(function()
+        local OldNamecall
+        OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(Self, ...)
+            local Method = getnamecallmethod()
+            local Args = {...}
+            
+            if not checkcaller() then
+                if Method == "FireServer" or Method == "InvokeServer" then
+                    local RemoteName = tostring(Self)
+                    
+                    for _, blocked in ipairs(Evasion.BlockedRemotes) do
+                        if RemoteName:lower():find(blocked:lower()) then
+                            return wait(9e9)
+                        end
+                    end
+                    
+                    if RemoteName:find("Combat") or RemoteName:find("Damage") or RemoteName:find("Hit") then
+                        for i, arg in ipairs(Args) do
+                            if typeof(arg) == "Vector3" then
+                                local noise = Vector3.new(
+                                    math.random(-25, 25) / 1000,
+                                    math.random(-25, 25) / 1000,
+                                    math.random(-25, 25) / 1000
+                                )
+                                Args[i] = arg + noise
+                            end
+                        end
+                    end
+                end
+            end
+            
+            return OldNamecall(Self, unpack(Args))
+        end))
+        
+        local OldIndex
+        OldIndex = hookmetamethod(game, "__index", newcclosure(function(Self, Key)
+            if not checkcaller() then
+                if Self:IsA("Humanoid") then
+                    if Key == "WalkSpeed" then return 16 end
+                    if Key == "JumpPower" then return 50 end
+                end
+                
+                if Self == Camera and (Key == "CFrame" or Key == "Focus") then
+                    local real = OldIndex(Self, Key)
+                    if typeof(real) == "CFrame" then
+                        local jitter = CFrame.Angles(
+                            math.rad(math.random(-1, 1) / 150),
+                            math.rad(math.random(-1, 1) / 150),
+                            0
+                        )
+                        return real * jitter
+                    end
+                    return real
+                end
+            end
+            
+            return OldIndex(Self, Key)
+        end))
+        
+        HookActive = true
+    end)
+end
+
+-- Behavioral Profile
+local BehaviorProfile = {
+    ReactionTime = 0,
+    Microshake = 0,
+    OvershootChance = 0,
+    UpdateVariance = 0,
+    LastUpdate = 0,
+    PersonalityType = "balanced"
+}
+
+local function GenerateBehaviorProfile()
+    local profiles = {
+        balanced = {
+            ReactionTime = {85, 135},
+            Microshake = {20, 35},
+            OvershootChance = {8, 16},
+            UpdateVariance = {3, 8}
+        }
+    }
+    
+    local profile = profiles[BehaviorProfile.PersonalityType]
+    
+    BehaviorProfile.ReactionTime = math.random(profile.ReactionTime[1], profile.ReactionTime[2]) / 1000
+    BehaviorProfile.Microshake = math.random(profile.Microshake[1], profile.Microshake[2]) / 1000
+    BehaviorProfile.OvershootChance = math.random(profile.OvershootChance[1], profile.OvershootChance[2])
+    BehaviorProfile.UpdateVariance = math.random(profile.UpdateVariance[1], profile.UpdateVariance[2]) / 1000
+    BehaviorProfile.LastUpdate = tick()
+end
+
+GenerateBehaviorProfile()
+
+-- FOV Drawing
+local FOVCircle, FOVFill, TargetIndicator
+local ESPObjects = {}
+
+if HasDrawing then
+    FOVCircle = Drawing.new("Circle")
+    FOVCircle.Thickness = IsMobile and 3 or 2
+    FOVCircle.NumSides = 100
+    FOVCircle.Radius = Config.FOVRadius
+    FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+    FOVCircle.Visible = Config.ShowFOV
+    FOVCircle.Transparency = IsMobile and 0.5 or 0.65
+    FOVCircle.Filled = false
+    
+    FOVFill = Drawing.new("Circle")
+    FOVFill.Thickness = 1
+    FOVFill.NumSides = 100
+    FOVFill.Radius = Config.FOVRadius
+    FOVFill.Color = Color3.fromRGB(25, 25, 25)
+    FOVFill.Visible = Config.ShowFOV
+    FOVFill.Transparency = 0.98
+    FOVFill.Filled = true
+    
+    TargetIndicator = Drawing.new("Circle")
+    TargetIndicator.Thickness = 3
+    TargetIndicator.NumSides = 24
+    TargetIndicator.Radius = 10
+    TargetIndicator.Color = Color3.fromRGB(255, 60, 60)
+    TargetIndicator.Visible = false
+    TargetIndicator.Transparency = 0.85
+    TargetIndicator.Filled = true
+end
+
+-- ESP Functions
+local function CreateESPForPlayer(player)
+    if not HasDrawing or not Config.ESPEnabled or player == LocalPlayer then return end
+    if ESPObjects[player] then return end
+    
+    local esp = {
+        Box = Drawing.new("Square"),
+        Tracer = Drawing.new("Line"),
+        HealthBar = Drawing.new("Square"),
+        HealthBarBG = Drawing.new("Square"),
+        Name = Drawing.new("Text"),
+        Distance = Drawing.new("Text"),
+        Player = player
+    }
+    
+    esp.Box.Thickness = 2
+    esp.Box.Color = Color3.fromRGB(255, 255, 255)
+    esp.Box.Transparency = 0.8
+    esp.Box.Filled = false
+    esp.Box.Visible = false
+    
+    esp.Tracer.Thickness = 1.5
+    esp.Tracer.Color = Color3.fromRGB(255, 255, 255)
+    esp.Tracer.Transparency = 0.6
+    esp.Tracer.Visible = false
+    
+    esp.HealthBarBG.Thickness = 1
+    esp.HealthBarBG.Color = Color3.fromRGB(0, 0, 0)
+    esp.HealthBarBG.Transparency = 0.8
+    esp.HealthBarBG.Filled = true
+    esp.HealthBarBG.Visible = false
+    
+    esp.HealthBar.Thickness = 1
+    esp.HealthBar.Color = Color3.fromRGB(0, 255, 0)
+    esp.HealthBar.Transparency = 0.9
+    esp.HealthBar.Filled = true
+    esp.HealthBar.Visible = false
+    
+    esp.Name.Size = 14
+    esp.Name.Center = true
+    esp.Name.Outline = true
+    esp.Name.Color = Color3.fromRGB(255, 255, 255)
+    esp.Name.Transparency = 1
+    esp.Name.Visible = false
+    
+    esp.Distance.Size = 13
+    esp.Distance.Center = true
+    esp.Distance.Outline = true
+    esp.Distance.Color = Color3.fromRGB(200, 200, 200)
+    esp.Distance.Transparency = 1
+    esp.Distance.Visible = false
+    
+    ESPObjects[player] = esp
+end
+
+local function RemoveESP(player)
+    if not ESPObjects[player] then return end
+    
+    pcall(function()
+        for _, obj in pairs(ESPObjects[player]) do
+            if typeof(obj) ~= "table" and obj.Remove then
+                obj:Remove()
+            end
+        end
+        ESPObjects[player] = nil
+    end)
+end
+
+local function UpdateESP()
+    if not Config.ESPEnabled or not HasDrawing then return end
+    
+    for player, esp in pairs(ESPObjects) do
+        pcall(function()
+            if not player or not player.Parent or not player.Character then
+                esp.Box.Visible = false
+                esp.Tracer.Visible = false
+                esp.HealthBar.Visible = false
+                esp.HealthBarBG.Visible = false
+                esp.Name.Visible = false
+                esp.Distance.Visible = false
+                return
+            end
+            
+            local char = player.Character
+            local root = char:FindFirstChild("HumanoidRootPart")
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            
+            if not root or not humanoid or humanoid.Health <= 0 then
+                esp.Box.Visible = false
+                esp.Tracer.Visible = false
+                esp.HealthBar.Visible = false
+                esp.HealthBarBG.Visible = false
+                esp.Name.Visible = false
+                esp.Distance.Visible = false
+                return
+            end
+            
+            local distance = (root.Position - Camera.CFrame.Position).Magnitude
+            if distance > Config.ESPMaxDistance then
+                esp.Box.Visible = false
+                esp.Tracer.Visible = false
+                esp.HealthBar.Visible = false
+                esp.HealthBarBG.Visible = false
+                esp.Name.Visible = false
+                esp.Distance.Visible = false
+                return
+            end
+            
+            local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+            
+            if not onScreen then
+                esp.Box.Visible = false
+                esp.Tracer.Visible = false
+                esp.HealthBar.Visible = false
+                esp.HealthBarBG.Visible = false
+                esp.Name.Visible = false
+                esp.Distance.Visible = false
+                return
+            end
+            
+            local boxWidth = 4000 / distance
+            local boxHeight = 6000 / distance
+            
+            local teamColor = IsValidTarget(player) and Color3.fromRGB(255, 60, 60) or Color3.fromRGB(60, 255, 60)
+            
+            if Config.ESPBoxes then
+                esp.Box.Size = Vector2.new(boxWidth, boxHeight)
+                esp.Box.Position = Vector2.new(screenPos.X - boxWidth / 2, screenPos.Y - boxHeight / 2)
+                esp.Box.Color = teamColor
+                esp.Box.Visible = true
+            else
+                esp.Box.Visible = false
+            end
+            
+            if Config.ESPTracers then
+                local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                esp.Tracer.From = screenCenter
+                esp.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+                esp.Tracer.Color = teamColor
+                esp.Tracer.Visible = true
+            else
+                esp.Tracer.Visible = false
+            end
+            
+            if Config.ESPHealth then
+                local healthPercent = humanoid.Health / humanoid.MaxHealth
+                local barHeight = boxHeight
+                local barWidth = 4
+                
+                esp.HealthBarBG.Size = Vector2.new(barWidth, barHeight)
+                esp.HealthBarBG.Position = Vector2.new(screenPos.X - boxWidth / 2 - 6, screenPos.Y - boxHeight / 2)
+                esp.HealthBarBG.Visible = true
+                
+                esp.HealthBar.Size = Vector2.new(barWidth, barHeight * healthPercent)
+                esp.HealthBar.Position = Vector2.new(screenPos.X - boxWidth / 2 - 6, screenPos.Y - boxHeight / 2 + barHeight * (1 - healthPercent))
+                
+                if healthPercent > 0.6 then
+                    esp.HealthBar.Color = Color3.fromRGB(0, 255, 0)
+                elseif healthPercent > 0.3 then
+                    esp.HealthBar.Color = Color3.fromRGB(255, 255, 0)
+                else
+                    esp.HealthBar.Color = Color3.fromRGB(255, 0, 0)
+                end
+                
+                esp.HealthBar.Visible = true
+            else
+                esp.HealthBar.Visible = false
+                esp.HealthBarBG.Visible = false
+            end
+            
+            if Config.ESPNames then
+                esp.Name.Text = player.Name
+                esp.Name.Position = Vector2.new(screenPos.X, screenPos.Y - boxHeight / 2 - 18)
+                esp.Name.Color = teamColor
+                esp.Name.Visible = true
+            else
+                esp.Name.Visible = false
+            end
+            
+            if Config.ESPDistance then
+                esp.Distance.Text = math.floor(distance) .. "m"
+                esp.Distance.Position = Vector2.new(screenPos.X, screenPos.Y + boxHeight / 2 + 5)
+                esp.Distance.Visible = true
+            else
+                esp.Distance.Visible = false
+            end
+        end)
+    end
+end
+
+Players.PlayerAdded:Connect(CreateESPForPlayer)
+Players.PlayerRemoving:Connect(RemoveESP)
+
+for _, player in pairs(Players:GetPlayers()) do
+    CreateESPForPlayer(player)
+end
+
+-- Targeting System
+local VelocityHistory = {}
+
+local function HasPvPEnabled(player)
+    if not Config.PvPCheck then return true end
+    
+    return pcall(function()
+        local pvpValue = player:FindFirstChild("PvP") or player:FindFirstChild("IsPvP")
+        if pvpValue and pvpValue:IsA("BoolValue") then
+            return pvpValue.Value
+        end
+        
+        local char = player.Character
+        if char then
+            local tags = {"Combat", "PvPEnabled", "InCombat", "PvPMode"}
+            for _, tagName in ipairs(tags) do
+                local tag = char:FindFirstChild(tagName)
+                if tag then
+                    return tag:IsA("BoolValue") and tag.Value or true
+                end
+            end
+            
+            local head = char:FindFirstChild("Head")
+            if head then
+                for _, obj in ipairs(head:GetChildren()) do
+                    if obj:IsA("BillboardGui") then
+                        local label = obj:FindFirstChildOfClass("TextLabel")
+                        if label then
+                            local color = label.TextColor3
+                            if color.R > 0.7 and color.G < 0.4 then
+                                return true
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        return false
+    end) and true or false
+end
+
+local function GetTeam(player)
+    local success, result = pcall(function()
+        if player.Team then return player.Team.Name end
+        
+        local char = player.Character
+        if char then
+            if char:FindFirstChild("IsMarineTag") or char:FindFirstChild("Marine") then
+                return "Marines"
+            end
+            if char:FindFirstChild("IsPirateTag") or char:FindFirstChild("Pirate") then
+                return "Pirates"
+            end
+        end
+        
+        return "Unallied"
+    end)
+    
+    return success and result or "Unallied"
+end
+
+function IsValidTarget(player)
+    if not player or player == LocalPlayer then return false end
+    
+    local success, result = pcall(function()
+        if not HasPvPEnabled(player) then return false end
+        if not Config.TeamCheck then return true end
+        
+        local localTeam = GetTeam(LocalPlayer)
+        local targetTeam = GetTeam(player)
+        
+        if localTeam == "Pirates" then
+            return targetTeam == "Marines" or targetTeam == "Unallied"
+        elseif localTeam == "Marines" then
+            return targetTeam == "Pirates"
+        end
+        
+        return true
+    end)
+    
+    return success and result or false
+end
+
+local function IsVisible(targetPart)
+    if not Config.VisibleCheck then return true end
+    
+    return pcall(function()
+        local char = LocalPlayer.Character
+        if not char then return false end
+        
+        local origin = Camera.CFrame.Position
+        local direction = targetPart.Position - origin
+        
+        local rayParams = RaycastParams.new()
+        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+        rayParams.FilterDescendantsInstances = {char, targetPart.Parent}
+        rayParams.IgnoreWater = true
+        
+        local result = workspace:Raycast(origin, direction, rayParams)
+        
+        if not result then return true end
+        if result.Instance.Transparency > 0.8 then return true end
+        
+        return result.Instance:IsDescendantOf(targetPart.Parent)
+    end) and true or false
+end
+
+local function UpdateVelocityHistory(player, velocity, position)
+    if not VelocityHistory[player.UserId] then
+        VelocityHistory[player.UserId] = {}
+    end
+    
+    local history = VelocityHistory[player.UserId]
+    table.insert(history, {velocity = velocity, position = position, time = tick()})
+    
+    while #history > 20 do
+        table.remove(history, 1)
+    end
+end
+
+local function GetResolvedVelocity(player)
+    return pcall(function()
+        local char = player.Character
+        if not char then return Vector3.zero end
+        
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return Vector3.zero end
+        
+        local currentVel = root.AssemblyVelocity
+        UpdateVelocityHistory(player, currentVel, root.Position)
+        
+        if not Config.VelocityResolver then return currentVel end
+        
+        local history = VelocityHistory[player.UserId]
+        if not history or #history < 5 then return currentVel end
+        
+        local recent = history[#history]
+        local old = history[math.max(1, #history - 4)]
+        local timeDelta = recent.time - old.time
+        
+        if timeDelta == 0 then return currentVel end
+        
+        local acceleration = (recent.velocity - old.velocity) / timeDelta
+        
+        if Config.StrafePrediction then
+            local strafeChanges = 0
+            for i = math.max(1, #history - 3), #history do
+                local curr = history[i].velocity
+                local prev = history[i - 1] and history[i - 1].velocity or curr
+                
+                if (curr.X * prev.X < 0) or (curr.Z * prev.Z < 0) then
+                    strafeChanges = strafeChanges + 1
+                end
+            end
+            
+            if strafeChanges >= 2 then
+                acceleration = Vector3.new(
+                    acceleration.X * 0.25,
+                    acceleration.Y,
+                    acceleration.Z * 0.25
+                )
+            end
+        end
+        
+        return currentVel + (acceleration * Config.PredictionStrength * 0.8)
+    end) and Vector3.zero or Vector3.zero
+end
+
+local function PredictJumpArc(player, targetPart)
+    if not Config.JumpPrediction then return Vector3.zero end
+    
+    return pcall(function()
+        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return Vector3.zero end
+        
+        local state = humanoid:GetState()
+        
+        if state == Enum.HumanoidStateType.Freefall or 
+           state == Enum.HumanoidStateType.Jumping then
+            
+            local velocity = targetPart.AssemblyVelocity
+            local gravity = workspace.Gravity
+            
+            local timeToApex = math.abs(velocity.Y) / gravity
+            local apexHeight = velocity.Y * timeToApex - (0.5 * gravity * timeToApex^2)
+            
+            return Vector3.new(0, apexHeight * 0.42, 0)
+        end
+        
+        return Vector3.zero
+    end) and Vector3.zero or Vector3.zero
+end
+
+local function GetDynamicSmoothness(distance, velocity)
+    local baseSmoothness = Config.BaseSmoothness
+    
+    if Config.DistanceSmoothing then
+        local distanceFactor = math.clamp(distance / 100, 0.65, 1.6)
+        baseSmoothness = baseSmoothness * distanceFactor
+    end
+    
+    if Config.VelocitySmoothing and Config.AdaptiveSmoothing then
+        local speed = velocity.Magnitude
+        if speed > 35 then
+            baseSmoothness = baseSmoothness * 0.82
+        elseif speed < 8 then
+            baseSmoothness = baseSmoothness * 1.18
+        end
+    end
+    
+    return math.clamp(baseSmoothness, 0.05, 0.35)
+end
+
+local function GetFOVMultiplier(distanceFromCenter)
+    if not Config.FOVFalloff then return 1 end
+    
+    local normalized = distanceFromCenter / Config.FOVRadius
+    
+    if normalized > 0.7 then
+        local edge = (normalized - 0.7) / 0.3
+        return 1 - (edge^2 * 0.65)
+    end
+    
+    return 1
+end
+
+local CameraState = {
+    position = Vector3.zero,
+    velocity = Vector3.zero,
+    lastUpdate = tick()
+}
+
+local function ApplyShakeReduction(targetPos)
+    return pcall(function()
+        local dt = tick() - CameraState.lastUpdate
+        CameraState.lastUpdate = tick()
+        
+        if dt > 0.1 then dt = 0.016 end
+        
+        local predicted = CameraState.position + (CameraState.velocity * dt)
+        local innovation = targetPos - predicted
+        
+        local alpha = Config.ShakeReduction
+        CameraState.position = predicted + (innovation * (1 - alpha))
+        CameraState.velocity = innovation / dt
+        
+        return CameraState.position
+    end) and CameraState.position or targetPos
+end
+
+local function GetBestHitbox(char, distance, velocity)
+    if not Config.SmartHitbox then
+        return char:FindFirstChild(Config.HitboxPriority[1]) or char:FindFirstChild("HumanoidRootPart")
+    end
+    
+    local speed = velocity.Magnitude
+    
+    if distance < 35 and speed < 12 then
+        return char:FindFirstChild("Head")
+    end
+    
+    if distance > 70 or speed > 28 then
+        return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso")
+    end
+    
+    for _, hitboxName in ipairs(Config.HitboxPriority) do
+        local part = char:FindFirstChild(hitboxName)
+        if part then return part end
+    end
+    
+    return char:FindFirstChild("HumanoidRootPart")
+end
+
+local function GetTargetPriority(player)
+    if not Config.PrioritySystem then return 1 end
+    
+    return pcall(function()
+        local char = player.Character
+        if not char then return 1 end
+        
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return 1 end
+        
+        local healthPercent = humanoid.Health / humanoid.MaxHealth
+        
+        if healthPercent < 0.35 then return 2.2 end
+        if healthPercent < 0.6 then return 1.5 end
+        
+        return 1.0
+    end) and 1 or 1
+end
+
+local function ApplyHumanization(targetPos)
+    return pcall(function()
+        local t = tick()
+        local microshake = Vector3.new(
+            (math.sin(t * 47) * math.cos(t * 23) - 0.5) * BehaviorProfile.Microshake,
+            (math.cos(t * 31) * math.sin(t * 41) - 0.5) * BehaviorProfile.Microshake,
+            (math.sin(t * 37) * math.sin(t * 29) - 0.5) * BehaviorProfile.Microshake
+        )
+        
+        local overshoot = Vector3.zero
+        if math.random(1, 100) <= BehaviorProfile.OvershootChance then
+            local dir = (targetPos - Camera.CFrame.Position).Unit
+            overshoot = dir * (math.random(8, 18) / 100)
+        end
+        
+        return targetPos + microshake + overshoot
+    end) and targetPos or targetPos
+end
+
+-- Evasion Functions
+local function ShouldMiss()
+    if math.random(1, 100) <= Evasion.MissChance then return true end
+    if Evasion.CurrentLockDuration > Evasion.MaxLockTime then return true end
+    
+    local headshotRatio = Evasion.Headshots / math.max(Evasion.TotalLocks, 1)
+    if headshotRatio > 0.6 then
+        return math.random(1, 100) <= 25
+    end
+    
+    return false
+end
+
+local lastCameraAngles = Vector2.zero
+local lastAngleTime = tick()
+
+local function LimitAngularVelocity(targetCFrame)
+    local currentAngles = Vector2.new(
+        math.deg(math.asin(targetCFrame.LookVector.Y)),
+        math.deg(math.atan2(targetCFrame.LookVector.X, targetCFrame.LookVector.Z))
+    )
+    
+    local deltaTime = tick() - lastAngleTime
+    if deltaTime == 0 then return targetCFrame end
+    
+    local angleDelta = (currentAngles - lastCameraAngles)
+    local angularVelocity = angleDelta.Magnitude / deltaTime
+    
+    if angularVelocity > Evasion.MaxAngularVelocity then
+        local limitFactor = Evasion.MaxAngularVelocity / angularVelocity
+        local limitedDelta = angleDelta * limitFactor
+        local newAngles = lastCameraAngles + limitedDelta
+        
+        local yaw = math.rad(newAngles.Y)
+        local pitch = math.rad(newAngles.X)
+        
+        targetCFrame = CFrame.new(Camera.CFrame.Position) * 
+                      CFrame.Angles(0, yaw, 0) * 
+                      CFrame.Angles(pitch, 0, 0)
+    end
+    
+    lastCameraAngles = currentAngles
+    lastAngleTime = tick()
+    
+    return targetCFrame
+end
+
+local lockStartTime = 0
+
+local function UpdateLockDuration(hasTarget)
+    if hasTarget then
+        if lockStartTime == 0 then
+            lockStartTime = tick()
+        end
+        Evasion.CurrentLockDuration = tick() - lockStartTime
+    else
+        lockStartTime = 0
+        Evasion.CurrentLockDuration = 0
+    end
+end
+
+local function CheckSuspicionLevel()
+    if Evasion.SuspiciousActions >= Evasion.FlagThreshold then
+        Config.Enabled = false
+        
+        pcall(function()
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "⚠️ AUTO-DISABLED",
+                Text = "Cooling down for 30s",
+                Duration = 5
+            })
+        end)
+        
+        task.delay(30, function()
+            Evasion.SuspiciousActions = 0
+        end)
+    end
+end
+
+local function FlagSuspicious(reason)
+    Evasion.SuspiciousActions = Evasion.SuspiciousActions + 1
+    Evasion.LastFlagTime = tick()
+    CheckSuspicionLevel()
+end
+
+-- Target Acquisition
+local currentTarget = nil
+local targetLockTime = 0
+local lastTargetSwitch = 0
+
+local function GetNearestTarget()
+    return pcall(function()
+        if tick() - Evasion.LastTargetSwitch < Evasion.MinSwitchDelay then
+            return currentTarget
+        end
+        
+        if ShouldMiss() and math.random(1, 100) <= 50 then
+            Evasion.LastTargetSwitch = tick()
+            return nil
+        end
+        
+        if Evasion.CurrentLockDuration > Evasion.MaxLockTime then
+            FlagSuspicious("Lock duration")
+            Evasion.LastTargetSwitch = tick()
+            return nil
+        end
+        
+        local nearestPlayer = nil
+        local shortestDistance = math.huge
+        local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        
+        if Config.StickyTarget and currentTarget then
+            local timeLocked = tick() - targetLockTime
+            
+            if timeLocked < Config.StickyThreshold and IsValidTarget(currentTarget) then
+                local char = currentTarget.Character
+                if char then
+                    local root = char:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        local humanoid = char:FindFirstChildOfClass("Humanoid")
+                        if humanoid and humanoid.Health > 0 then
+                            local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+                            if onScreen then
+                                local dist2D = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                                if dist2D < Config.FOVRadius * 1.35 then
+                                    return currentTarget
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        for _, player in pairs(Players:GetPlayers()) do
+            if IsValidTarget(player) then
+                local char = player.Character
+                if char then
+                    local root = char:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        local distance3D = (root.Position - Camera.CFrame.Position).Magnitude
+                        local velocity = root.AssemblyVelocity
+                        local hitbox = GetBestHitbox(char, distance3D, velocity)
+                        
+                        if hitbox then
+                            local humanoid = char:FindFirstChildOfClass("Humanoid")
+                            
+                            if humanoid and humanoid.Health > 0 then
+                                local screenPos, onScreen = Camera:WorldToViewportPoint(hitbox.Position)
+                                
+                                if onScreen then
+                                    local screenVec = Vector2.new(screenPos.X, screenPos.Y)
+                                    local distance2D = (screenVec - screenCenter).Magnitude
+                                    
+                                    local priority = GetTargetPriority(player)
+                                    local weightedDist = distance2D / priority
+                                    
+                                    if distance2D < Config.FOVRadius and weightedDist < shortestDistance then
+                                        if IsVisible(hitbox) then
+                                            nearestPlayer = player
+                                            shortestDistance = weightedDist
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        if nearestPlayer and nearestPlayer ~= currentTarget then
+            targetLockTime = tick()
+            Evasion.LastTargetSwitch = tick()
+            Evasion.TotalLocks = Evasion.TotalLocks + 1
+        end
+        
+        return nearestPlayer
+    end) and currentTarget or nil
+end
+
+-- Main Camlock Loop
+local lastUpdateTime = 0
+local performanceStats = {
+    avgFrameTime = 0,
+    updateCount = 0
+}
+
+RunService.RenderStepped:Connect(function(deltaTime)
+    pcall(function()
+        if not Config.Enabled then 
+            UpdateLockDuration(false)
+            return 
+        end
+        
+        local targetInterval = 1 / 60
+        local variance = BehaviorProfile.UpdateVariance
+        local randomInterval = targetInterval + (math.random() * variance * 2 - variance)
+        
+        if tick() - lastUpdateTime < randomInterval then return end
+        lastUpdateTime = tick()
+        
+        if tick() - BehaviorProfile.LastUpdate > math.random(35, 65) then
+            GenerateBehaviorProfile()
+        end
+        
+        local reactionDelay = Evasion.NaturalDelay + (math.random(-20, 20) / 1000)
+        task.wait(reactionDelay)
+        
+        currentTarget = GetNearestTarget()
+        UpdateLockDuration(currentTarget ~= nil)
+        
+        if currentTarget then
+            local char = currentTarget.Character
+            if char then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    local distance3D = (root.Position - Camera.CFrame.Position).Magnitude
+                    local velocity = GetResolvedVelocity(currentTarget)
+                    local hitbox = GetBestHitbox(char, distance3D, velocity)
+                    
+                    if hitbox then
+                        local humanoid = char:FindFirstChildOfClass("Humanoid")
+                        
+                        if humanoid and humanoid.Health > 0 then
+                            if hitbox.Name == "Head" then
+                                Evasion.Headshots = Evasion.Headshots + 1
+                            else
+                                Evasion.BodyShots = Evasion.BodyShots + 1
+                            end
+                            
+                            local predictedPos = hitbox.Position + (velocity * Config.PredictionStrength)
+                            predictedPos = predictedPos + PredictJumpArc(currentTarget, hitbox)
+                            predictedPos = ApplyHumanization(predictedPos)
+                            predictedPos = ApplyShakeReduction(predictedPos)
+                            
+                            local smoothness = GetDynamicSmoothness(distance3D, velocity)
+                            local screenPos = Camera:WorldToViewportPoint(predictedPos)
+                            local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                            local distFromCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                            local fovMult = GetFOVMultiplier(distFromCenter)
+                            
+                            local finalSmooth = smoothness * fovMult
+                            local targetCFrame = CFrame.new(Camera.CFrame.Position, predictedPos)
+                            
+                            targetCFrame = LimitAngularVelocity(targetCFrame)
+                            
+                            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, finalSmooth)
+                            
+                            if HasDrawing and TargetIndicator and screenPos then
+                                TargetIndicator.Position = Vector2.new(screenPos.X, screenPos.Y)
+                                TargetIndicator.Visible = true
+                            end
+                            
+                            performanceStats.updateCount = performanceStats.updateCount + 1
+                            performanceStats.avgFrameTime = (performanceStats.avgFrameTime * 0.95) + (deltaTime * 0.05)
+                        end
+                    end
+                end
+            end
+        else
+            if HasDrawing and TargetIndicator then
+                TargetIndicator.Visible = false
+            end
+            
+            if Config.DynamicFOV and tick() - lastTargetSwitch > 3.5 then
+                local targetFOV = math.min(Config.FOVRadius * 1.55, 450)
+                if HasDrawing then
+                    FOVCircle.Radius = FOVCircle.Radius + ((targetFOV - FOVCircle.Radius) * 0.06)
+                    FOVFill.Radius = FOVCircle.Radius
+                end
+            else
+                if HasDrawing then
+                    FOVCircle.Radius = FOVCircle.Radius + ((Config.FOVRadius - FOVCircle.Radius) * 0.12)
+                    FOVFill.Radius = FOVCircle.Radius
+                end
+            end
+        end
+    end)
+end)
+
+-- FOV Update
+if HasDrawing then
+    RunService.RenderStepped:Connect(function()
+        pcall(function()
+            local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+            FOVCircle.Position = center
+            FOVFill.Position = center
+            FOVCircle.Visible = Config.ShowFOV
+            FOVFill.Visible = Config.ShowFOV
+            
+            if Config.RainbowFOV then
+                local hue = (tick() % 5) / 5
+                FOVCircle.Color = Color3.fromHSV(hue, 1, 1)
+            end
+        end)
+    end)
+end
+
+-- ESP Update
+RunService.Heartbeat:Connect(function()
+    pcall(UpdateESP)
+end)
+
+-- ═══════════════════════════════════════════════════════════
+-- PREMIUM ANIMATED GUI
+-- ═══════════════════════════════════════════════════════════
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = HttpService:GenerateGUID(false)
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 999
+
+pcall(function()
+    if gethui then
+        ScreenGui.Parent = gethui()
+    elseif syn and syn.protect_gui then
+        syn.protect_gui(ScreenGui)
+        ScreenGui.Parent = game.CoreGui
+    else
+        ScreenGui.Parent = game.CoreGui
+    end
+end)
+
+-- Main Container
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "Main"
+MainFrame.Parent = ScreenGui
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.5, 0, IsMobile and 0.7 or 0.5, 0)
+MainFrame.Size = UDim2.new(0, 0, 0, 0)
+MainFrame.Active = true
+MainFrame.Draggable = not IsMobile
+MainFrame.ClipsDescendants = true
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 16)
+MainCorner.Parent = MainFrame
+
+-- Outer Glow Effect
+local OuterGlow = Instance.new("ImageLabel")
+OuterGlow.Name = "Glow"
+OuterGlow.Parent = MainFrame
+OuterGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+OuterGlow.BackgroundTransparency = 1
+OuterGlow.Position = UDim2.new(0.5, 0, 0.5, 0)
+OuterGlow.Size = UDim2.new(1, 40, 1, 40)
+OuterGlow.Image = "rbxassetid://5028857084"
+OuterGlow.ImageColor3 = Color3.fromRGB(100, 255, 100)
+OuterGlow.ImageTransparency = 0.7
+OuterGlow.ZIndex = 0
+
+-- Gradient Background
+local Gradient = Instance.new("UIGradient")
+Gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 15, 18)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(5, 5, 8))
+}
+Gradient.Rotation = 135
+Gradient.Parent = MainFrame
+
+-- Animated Header
+local Header = Instance.new("Frame")
+Header.Name = "Header"
+Header.Parent = MainFrame
+Header.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+Header.BorderSizePixel = 0
+Header.Size = UDim2.new(1, 0, 0, 70)
+
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 16)
+HeaderCorner.Parent = Header
+
+local HeaderGradient = Instance.new("UIGradient")
+HeaderGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 25)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 12, 15))
+}
+HeaderGradient.Rotation = 90
+HeaderGradient.Parent = Header
+
+-- Logo/Icon
+local Logo = Instance.new("TextLabel")
+Logo.Name = "Logo"
+Logo.Parent = Header
+Logo.BackgroundTransparency = 1
+Logo.Position = UDim2.new(0, 25, 0, 12)
+Logo.Size = UDim2.new(0, 45, 0, 45)
+Logo.Font = Enum.Font.GothamBold
+Logo.Text = "⚡"
+Logo.TextColor3 = Color3.fromRGB(100, 255, 100)
+Logo.TextSize = 35
+Logo.TextTransparency = 0
+
+-- Animated glow on logo
+local LogoGlow = Instance.new("ImageLabel")
+LogoGlow.Parent = Logo
+LogoGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+LogoGlow.BackgroundTransparency = 1
+LogoGlow.Position = UDim2.new(0.5, 0, 0.5, 0)
+LogoGlow.Size = UDim2.new(1.5, 0, 1.5, 0)
+LogoGlow.Image = "rbxassetid://5028857084"
+LogoGlow.ImageColor3 = Color3.fromRGB(100, 255, 100)
+LogoGlow.ImageTransparency = 0.5
+LogoGlow.ZIndex = 0
+
+-- Title
+local Title = Instance.new("TextLabel")
+Title.Name = "Title"
+Title.Parent = Header
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 80, 0, 15)
+Title.Size = UDim2.new(1, -110, 0, 25)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "PREMIUM+ CAMLOCK"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = IsMobile and 20 or 18
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Subtitle
+local Subtitle = Instance.new("TextLabel")
+Subtitle.Name = "Subtitle"
+Subtitle.Parent = Header
+Subtitle.BackgroundTransparency = 1
+Subtitle.Position = UDim2.new(0, 80, 0, 42)
+Subtitle.Size = UDim2.new(1, -110, 0, 18)
+Subtitle.Font = Enum.Font.Gotham
+Subtitle.Text = "v" .. Config.Version .. " | " .. (IsMobile and "📱 Mobile" or "💻 PC") .. " | " .. ExecutorName
+Subtitle.TextColor3 = Color3.fromRGB(120, 120, 120)
+Subtitle.TextSize = 11
+Subtitle.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Animated Status Banner
+local StatusBanner = Instance.new("Frame")
+StatusBanner.Name = "StatusBanner"
+StatusBanner.Parent = MainFrame
+StatusBanner.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+StatusBanner.BorderSizePixel = 0
+StatusBanner.Position = UDim2.new(0, 20, 0, 85)
+StatusBanner.Size = UDim2.new(1, -40, 0, 110)
+
+local BannerCorner = Instance.new("UICorner")
+BannerCorner.CornerRadius = UDim.new(0, 12)
+BannerCorner.Parent = StatusBanner
+
+-- Animated Border
+local BorderFrame = Instance.new("Frame")
+BorderFrame.Name = "Border"
+BorderFrame.Parent = StatusBanner
+BorderFrame.BackgroundTransparency = 1
+BorderFrame.Size = UDim2.new(1, 0, 1, 0)
+BorderFrame.ZIndex = 2
+
+local BorderStroke = Instance.new("UIStroke")
+BorderStroke.Parent = StatusBanner
+BorderStroke.Color = Color3.fromRGB(100, 255, 100)
+BorderStroke.Thickness = 2
+BorderStroke.Transparency = 0.7
+
+-- Status Label with Pulse
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Name = "Status"
+StatusLabel.Parent = StatusBanner
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Position = UDim2.new(0, 20, 0, 15)
+StatusLabel.Size = UDim2.new(1, -40, 0, 30)
+StatusLabel.Font = Enum.Font.GothamBold
+StatusLabel.Text = "● OFFLINE"
+StatusLabel.TextColor3 = Color3.fromRGB(255, 70, 70)
+StatusLabel.TextSize = IsMobile and 18 or 16
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Target Label
+local TargetLabel = Instance.new("TextLabel")
+TargetLabel.Name = "Target"
+TargetLabel.Parent = StatusBanner
+TargetLabel.BackgroundTransparency = 1
+TargetLabel.Position = UDim2.new(0, 20, 0, 50)
+TargetLabel.Size = UDim2.new(1, -40, 0, 22)
+TargetLabel.Font = Enum.Font.Gotham
+TargetLabel.Text = "Target: None"
+TargetLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+TargetLabel.TextSize = 14
+TargetLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Stats Label
+local StatsLabel = Instance.new("TextLabel")
+StatsLabel.Name = "Stats"
+StatsLabel.Parent = StatusBanner
+StatsLabel.BackgroundTransparency = 1
+StatsLabel.Position = UDim2.new(0, 20, 0, 78)
+StatsLabel.Size = UDim2.new(1, -40, 0, 20)
+StatsLabel.Font = Enum.Font.Gotham
+StatsLabel.Text = "FPS: -- | Locks: 0 | HS: 0%"
+StatsLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
+StatsLabel.TextSize = 12
+StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Tab Container
+local TabContainer = Instance.new("Frame")
+TabContainer.Name = "Tabs"
+TabContainer.Parent = MainFrame
+TabContainer.BackgroundTransparency = 1
+TabContainer.Position = UDim2.new(0, 20, 0, 210)
+TabContainer.Size = UDim2.new(1, -40, 0, 40)
+
+local TabLayout = Instance.new("UIListLayout")
+TabLayout.Parent = TabContainer
+TabLayout.FillDirection = Enum.FillDirection.Horizontal
+TabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TabLayout.Padding = UDim.new(0, 10)
+
+-- Scroll Frame for Settings
+local ScrollFrame = Instance.new("ScrollingFrame")
+ScrollFrame.Name = "Scroll"
+ScrollFrame.Parent = MainFrame
+ScrollFrame.BackgroundTransparency = 1
+ScrollFrame.BorderSizePixel = 0
+ScrollFrame.Position = UDim2.new(0, 20, 0, 260)
+ScrollFrame.Size = UDim2.new(1, -40, 1, -275)
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, IsMobile and 950 or 900)
+ScrollFrame.ScrollBarThickness = 6
+ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 255, 100)
+ScrollFrame.ScrollBarImageTransparency = 0.3
+
+-- Button Creator with Animation
+local buttonY = 0
+local function CreateButton(name, text, isToggle, initialState)
+    local Container = Instance.new("Frame")
+    Container.Name = name .. "Container"
+    Container.Parent = ScrollFrame
+    Container.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+    Container.BorderSizePixel = 0
+    Container.Position = UDim2.new(0, 0, 0, buttonY)
+    Container.Size = UDim2.new(1, -15, 0, IsMobile and 52 or 48)
+    
+    local ContainerCorner = Instance.new("UICorner")
+    ContainerCorner.CornerRadius = UDim.new(0, 10)
+    ContainerCorner.Parent = Container
+    
+    local ContainerGradient = Instance.new("UIGradient")
+    ContainerGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(22, 22, 26)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(18, 18, 22))
+    }
+    ContainerGradient.Rotation = 90
+    ContainerGradient.Parent = Container
+    
+    local Btn = Instance.new("TextButton")
+    Btn.Name = name
+    Btn.Parent = Container
+    Btn.BackgroundTransparency = 1
+    Btn.Size = UDim2.new(1, 0, 1, 0)
+    Btn.Font = Enum.Font.GothamSemibold
+    Btn.Text = text
+    Btn.TextColor3 = isToggle and (initialState and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)) or Color3.fromRGB(180, 180, 180)
+    Btn.TextSize = IsMobile and 15 or 14
+    Btn.AutoButtonColor = false
+    
+    -- Accent Bar
+    local AccentBar = Instance.new("Frame")
+    AccentBar.Name = "Accent"
+    AccentBar.Parent = Container
+    AccentBar.BackgroundColor3 = isToggle and (initialState and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)) or Color3.fromRGB(100, 255, 100)
+    AccentBar.BorderSizePixel = 0
+    AccentBar.Size = UDim2.new(0, 4, 1, 0)
+    
+    local AccentCorner = Instance.new("UICorner")
+    AccentCorner.CornerRadius = UDim.new(1, 0)
+    AccentCorner.Parent = AccentBar
+    
+    -- Hover Effect
+    if IsPC then
+        Btn.MouseEnter:Connect(function()
+            TweenService:Create(Container, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(28, 28, 32)}):Play()
+            TweenService:Create(AccentBar, TweenInfo.new(0.2), {Size = UDim2.new(0, 6, 1, 0)}):Play()
+        end)
+        Btn.MouseLeave:Connect(function()
+            TweenService:Create(Container, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(20, 20, 24)}):Play()
+            TweenService:Create(AccentBar, TweenInfo.new(0.2), {Size = UDim2.new(0, 4, 1, 0)}):Play()
+        end)
+    end
+    
+    buttonY = buttonY + (IsMobile and 60 or 56)
+    return Btn, AccentBar
+end
+
+-- Create All Buttons
+local TeamCheckBtn, TeamAccent = CreateButton("Team", "Team Check: ON", true, Config.TeamCheck)
+local PvPCheckBtn, PvPAccent = CreateButton("PvP", "PvP Check: ON", true, Config.PvPCheck)
+local VisibleCheckBtn, VisibleAccent = CreateButton("Visible", "Wall Check: ON", true, Config.VisibleCheck)
+local StickyBtn, StickyAccent = CreateButton("Sticky", "Sticky Target: ON", true, Config.StickyTarget)
+local ResolverBtn, ResolverAccent = CreateButton("Resolver", "Velocity Resolver: ON", true, Config.VelocityResolver)
+local PriorityBtn, PriorityAccent = CreateButton("Priority", "Low HP Priority: ON", true, Config.PrioritySystem)
+local ESPBtn, ESPAccent = CreateButton("ESP", "ESP System: OFF", true, Config.ESPEnabled)
+
+local FOVSlider, FOVAccent = CreateButton("FOV", "FOV: " .. Config.FOVRadius, false, false)
+local SmoothSlider, SmoothAccent = CreateButton("Smooth", string.format("Smoothness: %.2f", Config.BaseSmoothness), false, false)
+local PredictSlider, PredictAccent = CreateButton("Predict", string.format("Prediction: %.2f", Config.PredictionStrength), false, false)
+
+local SaveConfigBtn, SaveAccent = CreateButton("Save", "💾 Save Config", false, false)
+local LoadConfigBtn, LoadAccent = CreateButton("Load", "📂 Load Config", false, false)
+
+-- Button Logic with Animations
+TeamCheckBtn.MouseButton1Click:Connect(function()
+    Config.TeamCheck = not Config.TeamCheck
+    TeamCheckBtn.Text = "Team Check: " .. (Config.TeamCheck and "ON" or "OFF")
+    TweenService:Create(TeamCheckBtn, TweenInfo.new(0.3), {TextColor3 = Config.TeamCheck and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+    TweenService:Create(TeamAccent, TweenInfo.new(0.3), {BackgroundColor3 = Config.TeamCheck and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+end)
+
+PvPCheckBtn.MouseButton1Click:Connect(function()
+    Config.PvPCheck = not Config.PvPCheck
+    PvPCheckBtn.Text = "PvP Check: " .. (Config.PvPCheck and "ON" or "OFF")
+    TweenService:Create(PvPCheckBtn, TweenInfo.new(0.3), {TextColor3 = Config.PvPCheck and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+    TweenService:Create(PvPAccent, TweenInfo.new(0.3), {BackgroundColor3 = Config.PvPCheck and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+end)
+
+VisibleCheckBtn.MouseButton1Click:Connect(function()
+    Config.VisibleCheck = not Config.VisibleCheck
+    VisibleCheckBtn.Text = "Wall Check: " .. (Config.VisibleCheck and "ON" or "OFF")
+    TweenService:Create(VisibleCheckBtn, TweenInfo.new(0.3), {TextColor3 = Config.VisibleCheck and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+    TweenService:Create(VisibleAccent, TweenInfo.new(0.3), {BackgroundColor3 = Config.VisibleCheck and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+end)
+
+StickyBtn.MouseButton1Click:Connect(function()
+    Config.StickyTarget = not Config.StickyTarget
+    StickyBtn.Text = "Sticky Target: " .. (Config.StickyTarget and "ON" or "OFF")
+    TweenService:Create(StickyBtn, TweenInfo.new(0.3), {TextColor3 = Config.StickyTarget and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+    TweenService:Create(StickyAccent, TweenInfo.new(0.3), {BackgroundColor3 = Config.StickyTarget and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+end)
+
+ResolverBtn.MouseButton1Click:Connect(function()
+    Config.VelocityResolver = not Config.VelocityResolver
+    ResolverBtn.Text = "Velocity Resolver: " .. (Config.VelocityResolver and "ON" or "OFF")
+    TweenService:Create(ResolverBtn, TweenInfo.new(0.3), {TextColor3 = Config.VelocityResolver and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+    TweenService:Create(ResolverAccent, TweenInfo.new(0.3), {BackgroundColor3 = Config.VelocityResolver and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+end)
+
+PriorityBtn.MouseButton1Click:Connect(function()
+    Config.PrioritySystem = not Config.PrioritySystem
+    PriorityBtn.Text = "Low HP Priority: " .. (Config.PrioritySystem and "ON" or "OFF")
+    TweenService:Create(PriorityBtn, TweenInfo.new(0.3), {TextColor3 = Config.PrioritySystem and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+    TweenService:Create(PriorityAccent, TweenInfo.new(0.3), {BackgroundColor3 = Config.PrioritySystem and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+end)
+
+ESPBtn.MouseButton1Click:Connect(function()
+    Config.ESPEnabled = not Config.ESPEnabled
+    ESPBtn.Text = "ESP System: " .. (Config.ESPEnabled and "ON" or "OFF")
+    TweenService:Create(ESPBtn, TweenInfo.new(0.3), {TextColor3 = Config.ESPEnabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+    TweenService:Create(ESPAccent, TweenInfo.new(0.3), {BackgroundColor3 = Config.ESPEnabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+end)
+
+FOVSlider.MouseButton1Click:Connect(function()
+    local fovs = {100, 140, 180, 230, 290, 370, 480}
+    local idx = table.find(fovs, Config.FOVRadius) or 1
+    idx = (idx % #fovs) + 1
+    Config.FOVRadius = fovs[idx]
+    if HasDrawing then
+        FOVCircle.Radius = Config.FOVRadius
+        FOVFill.Radius = Config.FOVRadius
+    end
+    FOVSlider.Text = "FOV: " .. Config.FOVRadius
+end)
+
+SmoothSlider.MouseButton1Click:Connect(function()
+    local smooths = {0.07, 0.095, 0.12, 0.145, 0.175, 0.22, 0.28}
+    local idx = 1
+    for i, v in ipairs(smooths) do
+        if math.abs(v - Config.BaseSmoothness) < 0.005 then
+            idx = i
+            break
+        end
+    end
+    idx = (idx % #smooths) + 1
+    Config.BaseSmoothness = smooths[idx]
+    SmoothSlider.Text = string.format("Smoothness: %.2f", Config.BaseSmoothness)
+end)
+
+PredictSlider.MouseButton1Click:Connect(function()
+    local predicts = {0.10, 0.13, 0.158, 0.185, 0.22, 0.26}
+    local idx = 1
+    for i, v in ipairs(predicts) do
+        if math.abs(v - Config.PredictionStrength) < 0.005 then
+            idx = i
+            break
+        end
+    end
+    idx = (idx % #predicts) + 1
+    Config.PredictionStrength = predicts[idx]
+    PredictSlider.Text = string.format("Prediction: %.2f", Config.PredictionStrength)
+end)
+
+SaveConfigBtn.MouseButton1Click:Connect(function()
+    if SaveConfig() then
+        SaveConfigBtn.Text = "✅ Saved!"
+        TweenService:Create(SaveAccent, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(100, 255, 100)}):Play()
+        wait(2)
+        SaveConfigBtn.Text = "💾 Save Config"
+        TweenService:Create(SaveAccent, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(100, 255, 100)}):Play()
+    else
+        SaveConfigBtn.Text = "❌ Failed"
+        TweenService:Create(SaveAccent, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 70, 70)}):Play()
+        wait(2)
+        SaveConfigBtn.Text = "💾 Save Config"
+        TweenService:Create(SaveAccent, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(100, 255, 100)}):Play()
+    end
+end)
+
+LoadConfigBtn.MouseButton1Click:Connect(function()
+    if LoadConfig() then
+        LoadConfigBtn.Text = "✅ Loaded!"
+        TweenService:Create(LoadAccent, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(100, 255, 100)}):Play()
+        wait(2)
+        LoadConfigBtn.Text = "📂 Load Config"
+        TweenService:Create(LoadAccent, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(100, 255, 100)}):Play()
+    else
+        LoadConfigBtn.Text = "❌ Failed"
+        TweenService:Create(LoadAccent, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 70, 70)}):Play()
+        wait(2)
+        LoadConfigBtn.Text = "📂 Load Config"
+        TweenService:Create(LoadAccent, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(100, 255, 100)}):Play()
+    end
+end)
+
+-- Close Button
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Name = "Close"
+CloseBtn.Parent = Header
+CloseBtn.AnchorPoint = Vector2.new(1, 0.5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+CloseBtn.Position = UDim2.new(1, -15, 0.5, 0)
+CloseBtn.Size = UDim2.new(0, IsMobile and 42 or 38, 0, IsMobile and 42 or 38)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Text = "×"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = IsMobile and 26 or 24
+CloseBtn.AutoButtonColor = false
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(1, 0)
+CloseCorner.Parent = CloseBtn
+
+CloseBtn.MouseButton1Click:Connect(function()
+    TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 0, 0, 0)}):Play()
+    wait(0.3)
+    ScreenGui:Destroy()
+    if HasDrawing then
+        pcall(function()
+            FOVCircle:Remove()
+            FOVFill:Remove()
+            TargetIndicator:Remove()
+        end)
+    end
+    for _, esp in pairs(ESPObjects) do
+        RemoveESP(esp.Player)
+    end
+end)
+
+if IsPC then
+    CloseBtn.MouseEnter:Connect(function()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 70, 70), Size = UDim2.new(0, 42, 0, 42)}):Play()
+    end)
+    CloseBtn.MouseLeave:Connect(function()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 50, 50), Size = UDim2.new(0, 38, 0, 38)}):Play()
+    end)
+end
+
+-- Intro Animation
+TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    Size = UDim2.new(0, IsMobile and 380 or 420, 0, IsMobile and 550 or 620)
+}):Play()
+
+-- Pulse Animation for Logo
+spawn(function()
+    while wait(1.5) do
+        TweenService:Create(LogoGlow, TweenInfo.new(0.7), {ImageTransparency = 0.3, Size = UDim2.new(2, 0, 2, 0)}):Play()
+        wait(0.7)
+        TweenService:Create(LogoGlow, TweenInfo.new(0.7), {ImageTransparency = 0.7, Size = UDim2.new(1.5, 0, 1.5, 0)}):Play()
+    end
+end)
+
+-- Status Pulse Animation
+spawn(function()
+    while wait(1) do
+        if Config.Enabled then
+            TweenService:Create(StatusLabel, TweenInfo.new(0.5), {TextTransparency = 0.3}):Play()
+            wait(0.5)
+            TweenService:Create(StatusLabel, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
+        end
+    end
+end)
+
+-- Glow Pulse
+spawn(function()
+    while wait(2) do
+        TweenService:Create(OuterGlow, TweenInfo.new(1), {ImageTransparency = 0.5}):Play()
+        wait(1)
+        TweenService:Create(OuterGlow, TweenInfo.new(1), {ImageTransparency = 0.8}):Play()
+    end
+end)
+
+-- Mobile Touch Controls
+if IsMobile and Config.TouchActivation then
+    local lastTap = 0
+    local tapCount = 0
+    
+    UserInputService.TouchTap:Connect(function(touchPositions, gameProcessed)
+        if gameProcessed then return end
+        
+        local pos = touchPositions[1]
+        local screenSize = Camera.ViewportSize
+        
+        if pos.X < Config.ScreenEdgeDeadzone or 
+           pos.X > screenSize.X - Config.ScreenEdgeDeadzone or
+           pos.Y < Config.ScreenEdgeDeadzone or
+           pos.Y > screenSize.Y - Config.ScreenEdgeDeadzone then
+            return
+        end
+        
+        if tick() - lastTap < 0.35 then
+            tapCount = tapCount + 1
+            if tapCount >= 2 then
+                Config.Enabled = not Config.Enabled
+                
+                StatusLabel.Text = Config.Enabled and "● ACTIVE" or "● OFFLINE"
+                TweenService:Create(StatusLabel, TweenInfo.new(0.3), {TextColor3 = Config.Enabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+                TweenService:Create(BorderStroke, TweenInfo.new(0.3), {Color = Config.Enabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+                
+                if HasDrawing then
+                    FOVCircle.Color = Config.Enabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 255, 255)
+                end
+                
+                tapCount = 0
+            end
+        else
+            tapCount = 1
+        end
+        
+        lastTap = tick()
+    end)
+end
+
+-- PC Keyboard Controls
+if IsPC then
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if input.KeyCode == Config.ToggleKey then
+            Config.Enabled = not Config.Enabled
+            
+            StatusLabel.Text = Config.Enabled and "● ACTIVE" or "● OFFLINE"
+            TweenService:Create(StatusLabel, TweenInfo.new(0.3), {TextColor3 = Config.Enabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+            TweenService:Create(BorderStroke, TweenInfo.new(0.3), {Color = Config.Enabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+            
+            if HasDrawing then
+                FOVCircle.Color = Config.Enabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 255, 255)
+            end
+        end
+        
+        if input.KeyCode == Config.ESPKey then
+            Config.ESPEnabled = not Config.ESPEnabled
+            ESPBtn.Text = "ESP System: " .. (Config.ESPEnabled and "ON" or "OFF")
+            TweenService:Create(ESPBtn, TweenInfo.new(0.3), {TextColor3 = Config.ESPEnabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 70, 70)}):Play()
+        end
+    end)
+end
+
+-- Performance Monitor
+RunService.Heartbeat:Connect(function()
+    pcall(function()
+        if Config.Enabled and currentTarget then
+            local char = currentTarget.Character
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    local hp = math.floor((humanoid.Health / humanoid.MaxHealth) * 100)
+                    TargetLabel.Text = string.format("Target: %s [%d%%]", currentTarget.Name, hp)
+                    TweenService:Create(TargetLabel, TweenInfo.new(0.3), {TextColor3 = Color3.fromRGB(100, 255, 100)}):Play()
+                end
+            end
+        elseif Config.Enabled then
+            TargetLabel.Text = "Target: Scanning..."
+            TweenService:Create(TargetLabel, TweenInfo.new(0.3), {TextColor3 = Color3.fromRGB(255, 200, 80)}):Play()
+        else
+            TargetLabel.Text = "Target: None"
+            TweenService:Create(TargetLabel, TweenInfo.new(0.3), {TextColor3 = Color3.fromRGB(150, 150, 150)}):Play()
+        end
+        
+        local fps = math.floor(1 / math.max(performanceStats.avgFrameTime, 0.001))
+        local headshotRatio = Evasion.Headshots / math.max(Evasion.TotalLocks, 1)
+        StatsLabel.Text = string.format("FPS: %d | Locks: %d | HS: %.0f%%", fps, Evasion.TotalLocks, headshotRatio * 100)
+    end)
+end)
+
+-- Initialize
+InitializeHooks()
+LoadConfig()
+
+local function ShowNotification(title, text, duration)
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = duration or 6
+        })
+    end)
+end
+
+ShowNotification(
+    "⚡ PREMIUM+ V3.0",
+    IsMobile and "Double-tap to toggle | E for ESP" or "Q to toggle | E for ESP",
+    8
+)
+
+print("[PREMIUM+] ✅ Loaded v" .. Config.Version)
+print("[PREMIUM+] Platform: " .. (IsMobile and "Mobile" or "PC"))
+print("[PREMIUM+] GUI: Animated Premium")
+print("[PREMIUM+] All systems operational")
